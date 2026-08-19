@@ -32,7 +32,7 @@ so the only variable is whether the feed-forward block is dense or a sparse rout
 - [Reproducing this project](#reproducing-this-project)
 - [Environment](#environment)
 - [Limitations](#limitations)
-- [Future work](#future-work)
+- [Suggestions](#Suggestions)
 - [Acknowledgments & citations](#acknowledgments--citations)
 - [License](#license)
 
@@ -227,7 +227,7 @@ PyTorch. Trained both variants. Saved the weights.
 
 A raw `nn.Module` has none of that.
 
-**The fix — and its cost:**
+**The fix:**
 
 | Before | After |
 |---|---|
@@ -248,9 +248,6 @@ So the trained weights and configs were permanently deleted, and both models wer
 > The HF base classes weren't a nice-to-have here — they were a hard dependency of the project's goal,
 > and discovering that after training cost two full runs.
 
-<!-- TODO: confirm this ending is accurate — I reconstructed the "unloadable state_dict → retrain from
-     scratch" detail from the code and your description. Correct anything I got wrong. -->
-
 ### 2. The auxiliary loss looked broken — and wasn't
 
 `MoE.forward` computes the standard load-balancing term and adds it to the LM loss with **no
@@ -261,27 +258,8 @@ aux_loss = n_experts * Σ(tokens_per_expert · router_prob)
 ```
 
 Most MoE implementations scale this by something like `0.01`, so it nudges routing without competing
-with the primary objective. Here it goes in raw — and `funcs.py` sums it across **all 12 layers**.
-
-At first glance the numbers look alarming:
-
-| Loss term | MoE value |
-|---|---|
-| Pure LM loss | 5.911 |
-| Combined (LM + unscaled aux) | **17.91** — ~3x the LM loss |
-
-**But work out the floor.** `tokens_per_expert` sums to 1 and `router_prob` sums to 1, so
-`n_experts * Σ(f · P)` is **minimized at exactly 1.0** when routing is perfectly uniform. Across 12
-layers that floor is **12.0**.
-
-The observed gap is `17.91 − 5.911 = ` **12.0** — the term sat exactly on its minimum.
-
-So the aux loss wasn't swamping anything. It was reporting **near-perfectly balanced routing**, which is
-what it exists to enforce. The scary-looking 3x is a near-constant offset; only *deviation* above the
-floor produces gradient, and there was almost none.
-
-> The unscaled coefficient is still non-standard and still worth sweeping. But it does **not** explain
-> why MoE underperformed here — routing was healthy, so the gap has to come from somewhere else.
+with the primary objective. Here it goes untouched — and `funcs.py` sums it across **all 12 layers** 
+(something to definitely change if you're re-creating this).
 
 ### 3. MoE inference is ~3.1x slower despite matching active-parameter count
 
@@ -341,11 +319,15 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
   either way.
 - Both models are simply too small and too undertrained to clear those tasks meaningfully.
 
+---
+
 <details>
 <summary><b>ARC-Easy</b></summary>
 
 ![ARC-Easy comparison](evaluation/graphs/arc_easy.png)
 </details>
+
+---
 
 <details>
 <summary><b>PIQA</b></summary>
@@ -353,11 +335,15 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
 ![PIQA comparison](evaluation/graphs/piqa.png)
 </details>
 
+---
+
 <details>
 <summary><b>WikiText</b></summary>
 
 ![WikiText comparison](evaluation/graphs/wikitext.png)
 </details>
+
+---
 
 <details>
 <summary><b>LAMBADA (OpenAI)</b></summary>
@@ -365,11 +351,15 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
 ![LAMBADA comparison](evaluation/graphs/lambada_openai.png)
 </details>
 
+---
+
 <details>
 <summary><b>WinoGrande</b></summary>
 
 ![WinoGrande comparison](evaluation/graphs/winogrande.png)
 </details>
+
+---
 
 <details>
 <summary><b>HellaSwag</b></summary>
@@ -377,11 +367,15 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
 ![HellaSwag comparison](evaluation/graphs/hellaswag.png)
 </details>
 
+---
+
 <details>
 <summary><b>ARC-Challenge</b></summary>
 
 ![ARC-Challenge comparison](evaluation/graphs/arc_challenge.png)
 </details>
+
+---
 
 ### Inference speed
 
@@ -446,10 +440,6 @@ tokenizer = AutoTokenizer.from_pretrained(REPO)
 dense = LLM.from_pretrained(REPO, subfolder="dense")
 moe   = LLM.from_pretrained(REPO, subfolder="moe")
 ```
-
-> **Why the local import?** `config.json` declares `model_type="custom_llm"` but carries no `auto_map`,
-> so `AutoModelForCausalLM` + `trust_remote_code=True` can't resolve the class from the Hub alone.
-> Using the concrete `LLM` class sidesteps the `Auto*` lookup entirely — no registration needed.
 
 ---
 
@@ -518,11 +508,11 @@ Stage `trained_models/` to match the layout in [Repo structure](#repo-structure)
 folder in one shot:
 
 ```bash
-huggingface-cli login
+hf auth login
 ```
 
 ```bash
-huggingface-cli upload OliverSundaram/MoE-Study ./trained_models . --repo-type=model --exclude="*final_state.pt"
+hf upload OliverSundaram/MoE-Study ./trained_models . --repo-type=model --exclude="*final_state.pt"
 ```
 
 `--exclude` skips the multi-GB optimizer state, which isn't needed for inference.
@@ -554,6 +544,7 @@ Trained and evaluated entirely on a single consumer GPU — **no cloud rental**.
   positions, so exceeding the context raises an index error rather than truncating.
 - **No KV cache in the speed benchmark** — absolute tok/s isn't representative of an optimized serving
   setup.
+
 ---
 
 ## Suggestions
