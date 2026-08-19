@@ -299,17 +299,17 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
 
 ## Results
 
-### Benchmark accuracy / perplexity
+### Benchmark accuracy
 
-| Benchmark | Dense | MoE | Δ (MoE − Dense) |
-|---|---|---|---|
-| ARC-Easy (acc) | **29.2%** | 27.4% | 🔴 −1.8% |
-| PIQA (acc) | **55.0%** | 54.1% | 🔴 −0.8% |
-| WikiText (word ppl, lower=better) | **551.0** | 1,377.8 | 🔴 worse |
-| LAMBADA-OpenAI (acc) | 0.0% | 0.0% | ⚪ tie (both at floor) |
-| WinoGrande (acc) | 50.2% | **50.7%** | 🟢 +0.5% |
-| HellaSwag (acc_norm) | 24.9% | **25.1%** | 🟢 +0.1% |
-| ARC-Challenge (acc_norm) | 22.9% | 23.0% | ⚪ +0.1% (within stderr) |
+| Benchmark                         | Dense     | MoE       | abs(Δ)               | Winner   |
+|-----------------------------------|-----------|-----------|----------------------|----------|
+| ARC-Easy (acc)                    | **29.2%** | 27.4%     | 1.8%                 | 🔵 Dense |
+| PIQA (acc)                        | **55.0%** | 54.1%     | 0.8%                 | 🔵 Dense |
+| WikiText (word ppl, lower=better) | **551.0** | 1,377.8   | 826.8                | 🔵 Dense |
+| LAMBADA-OpenAI (acc)              | 0.0%      | 0.0%      | 0.0                  | ⚪ Tie    |
+| WinoGrande (acc)                  | 50.2%     | **50.7%** | 0.5%                 | 🟠 MoE   |
+| HellaSwag (acc_norm)              | 24.9%     | **25.1%** | 0.2%                 | 🟠 MoE   |
+| ARC-Challenge (acc_norm)          | 22.9%     | **23.0%** | 0.1% (within stderr) | 🟠 MoE   |
 
 **Reading the table:**
 
