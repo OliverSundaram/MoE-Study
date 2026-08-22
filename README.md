@@ -47,7 +47,13 @@ so the only variable is whether the feed-forward block is dense or a sparse rout
 
 ## Motivation
 
-I wanted to 
+After completing Sebastian Raschka's 7 video, 12 hour course, *Build a Large Language Model (From Scratch)* — 
+where he teaches a complete beginner in AI how to create their own LLM and fine-tune GPT2 — I naturally wanted
+to further develop my skills by training my own llm with custom architecture.
+
+This was done as a self-directed project for my ML portfolio, run on a single consumer GPU
+(RTX 4060, 8GB VRAM) — part of the point was seeing what's actually
+achievable on hardware a student would realistically have.
 
 ---
 
@@ -248,7 +254,7 @@ So the trained weights and configs were permanently deleted, and both models wer
 > The HF base classes weren't a nice-to-have here — they were a hard dependency of the project's goal,
 > and discovering that after training cost two full runs.
 
-### 2. The auxiliary loss looked broken — and wasn't
+### 2. The auxiliary scaling
 
 `MoE.forward` computes the standard load-balancing term and adds it to the LM loss with **no
 coefficient**:
@@ -552,8 +558,6 @@ Trained and evaluated entirely on a single consumer GPU — **no cloud rental**.
 - Re-run the MoE with a properly scaled (e.g. `0.01x`) auxiliary loss coefficient and compare.
 - Add KV-caching to the generation benchmark for a realistic inference-speed comparison.
 - Multi-epoch / larger-token-budget runs, to see whether MoE's gap narrows or widens with more training.
-- Sweep expert count and top-k (8 experts top-2, or top-1 routing) to separate "MoE" from
-  "this specific routing config."
 - A fused/batched expert-dispatch implementation, to isolate algorithmic MoE overhead from
   implementation overhead in the speed numbers.
 - Ship `modules.py` to the HF repo with an `auto_map` in `config.json`, so
