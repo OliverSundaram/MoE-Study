@@ -216,12 +216,12 @@ looks like.
 
 **What happened:**
 
-I had built the model architecture the way I had been taught. I subclassed each module with `nn.Module`.
+I had built the model architecture the way I had been taught. Each module subclasses `nn.Module`.
 
 **Why it broke:**
 
 [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) doesn't accept a bare
-`nn.Module`. Its `hf` model backend expects the Hugging Face compatible model:
+`nn.Module`. Its `hf` model backend expects the Hugging Face-compatible model:
 
 - a config object subclassing `PretrainedConfig`
 - a model subclassing `PreTrainedModel`, wired to that config via `config_class`
@@ -250,8 +250,8 @@ aux_loss = n_experts * Σ(tokens_per_expert · router_prob)
 Most MoE implementations scale this by `0.01`, so it nudges routing without competing
 with the primary objective. Here it goes untouched, so `funcs.py` sums it across all 12 layers.
 
-This was a complete mistake made from in-experience with Sparse models, and will definitely not be
-forgoten for future projects.
+This was a complete mistake made from inexperience with sparse models, and will definitely not be
+forgotten for future projects.
 
 ---
 
