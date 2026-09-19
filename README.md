@@ -47,13 +47,14 @@ so the only variable is whether the feed-forward block is dense or a sparse rout
 
 ## Motivation
 
-After completing Sebastian Raschka's 7 video, 12 hour course, *Build a Large Language Model (From Scratch)* — 
-where he teaches a complete beginner in AI how to create their own LLM and fine-tune GPT2 — I naturally wanted
-to further develop my skills by training my own llm with custom architecture.
-
-This was done as a self-directed project for my ML portfolio, run on a single consumer GPU
-(RTX 4060, 8GB VRAM) — part of the point was seeing what's actually
-achievable on hardware a student would realistically have.
+Ever since the introduction of MoE, LLMs have been able to increase their total parameters—sometimes in the
+trillions—while only having a small portion of their parameters actually being used for inference. While this
+is a major advance in the world of Machine Learning, they are highly complex to utilize. As someone without
+a team of researchers standing beside me, I found the implementation of the optimized MoE design to be
+unintelligible. This problem puzzled me, which led me to a non-optimized, but comprehensible design of MoE.
+This design involves looping over each "expert" in the model individually, instead of preprocessing them all
+in parallel, which is faster but much harder to understand. I made this study for the people just like me,
+who want to explore new concepts they find interesting, while still understanding each line of new code.
 
 ---
 
