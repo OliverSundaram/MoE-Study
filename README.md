@@ -24,7 +24,7 @@ so the only variable is whether the feed-forward block is dense or a sparse rout
 - [Dataset](#dataset)
 - [Architecture](#architecture)
 - [Training](#training)
-- [Challenges & mistakes](#challenges--mistakes)
+- [Challenges & Mistakes](#challenges--mistakes)
 - [Evaluation](#evaluation)
 - [Results](#results)
 - [Key findings](#key-findings)
@@ -41,7 +41,7 @@ so the only variable is whether the feed-forward block is dense or a sparse rout
 ## TL;DR
 
 > At matched active-parameter count (**~150M**), matched training budget (**1 epoch, ~40.7M tokens**), and
-> matched hardware, **Dense beat MoE on almost every benchmark** — and ran **3x faster** at inference.
+> matched hardware, **Dense beat MoE on every metric that wasn't already near chance** — and ran **3x faster** at inference.
 
 ---
 
@@ -214,24 +214,18 @@ looks like.
 
 ### 1. Deleting every trained weight and starting over
 
-The most expensive mistake of the project — and it was an architectural one, made on day one.
+**What happened:**
 
-**What I did:**
-
-Built the LLM the way I'd been taught. Every module — `MultiQueryAttention`, `FeedForward`, `MoE`,
-`Transformer`, and the top-level `LLM` class itself — inherited from `nn.Module`. Clean, idiomatic
-PyTorch. Trained both variants. Saved the weights.
+I had built the model architecture the way I had been taught. I subclassed each module with `nn.Module`.
 
 **Why it broke:**
 
 [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) doesn't accept a bare
-`nn.Module`. Its `hf` model backend expects the Hugging Face contract:
+`nn.Module`. Its `hf` model backend expects the Hugging Face compatible model:
 
 - a config object subclassing `PretrainedConfig`
 - a model subclassing `PreTrainedModel`, wired to that config via `config_class`
 - `save_pretrained` / `from_pretrained` and a serializable `config.json`
-
-A raw `nn.Module` has none of that.
 
 **The fix:**
 
@@ -241,18 +235,8 @@ A raw `nn.Module` has none of that.
 | hyperparameters as `__init__` args | `class LLMConfig(PretrainedConfig)`, `model_type="custom_llm"` |
 | `torch.save(model.state_dict())` | `model.save_pretrained()` → `config.json` + `model.safetensors` |
 
-Rewriting the class hierarchy renamed and re-nested the parameters in the `state_dict`. The old
-checkpoints no longer mapped onto the new module tree — the saved weights were **unloadable**, not just
-inconvenient.
-
 So the trained weights and configs were permanently deleted, and both models were retrained from scratch:
 **~45 min for Dense, ~60 min for MoE**, on a single 8 GB RTX 4060.
-
-**The lesson:**
-
-> Decide how a model will be *evaluated and shipped* before you decide how it's *built*.
-> The HF base classes weren't a nice-to-have here — they were a hard dependency of the project's goal,
-> and discovering that after training cost two full runs.
 
 ### 2. The auxiliary scaling
 
@@ -263,21 +247,11 @@ coefficient**:
 aux_loss = n_experts * Σ(tokens_per_expert · router_prob)
 ```
 
-Most MoE implementations scale this by something like `0.01`, so it nudges routing without competing
-with the primary objective. Here it goes untouched — and `funcs.py` sums it across **all 12 layers** 
-(something to definitely change if you're re-creating this).
+Most MoE implementations scale this by `0.01`, so it nudges routing without competing
+with the primary objective. Here it goes untouched, so `funcs.py` sums it across all 12 layers.
 
-### 3. MoE inference is ~3.1x slower despite matching active-parameter count
-
-**106.5 tok/s** (Dense) vs **34.4 tok/s** (MoE).
-
-Active compute per token should be roughly equal by design, so the gap is implementation overhead:
-
-- `MoE.forward` loops over experts **in Python**
-- gathers/scatters tokens per expert with boolean indexing + `index_add_`
-- no batching
-
-> This just means that the MoE implementation was not optimized, not that it is 3x slower than normal
+This was a complete mistake made from in-experience with Sparse models, and will definitely not be
+forgoten for future projects.
 
 ---
 
@@ -404,18 +378,10 @@ Shot counts match each task's standard publicly-reported default (Open LLM Leade
 **1. Dense beat MoE on every quality metric that wasn't already near chance.**
 Most clearly on WikiText perplexity (551 vs 1,378) and the two 0-shot commonsense/knowledge tasks.
 
-**2. The routing math checks out.**
-MoE's active-parameter count matches Dense almost exactly (top-2-of-4 experts at half hidden size) —
-but matched active compute didn't translate into matched quality at this training budget.
-
-**3. MoE was ~3.1x slower at inference.**
+**2. MoE was ~3.1x slower at inference.**
 Despite the matched active-parameter count — due to implementation.
 
-**4. Routing stayed balanced — the aux loss was never the problem.**
-Its unscaled value sat exactly on its uniform-routing floor (12.0 across 12 layers), so the load-balancing
-term was doing its job. The MoE's gap has to be explained by something other than broken routing.
-
-**5. The models have to be trained on more data.**
+**3. The models have to be trained on more data.**
 Both models trained for a single epoch (~40.7M tokens) on a small dataset — so take these results as experimental.
 
 ---
